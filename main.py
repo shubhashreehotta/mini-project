@@ -1,47 +1,58 @@
 from typing import List
 from fastapi import FastAPI, File, UploadFile
 from pydantic import BaseModel
+from PIL import Image
+import numpy as np
+import io
 
 app = FastAPI()
 
-# Dummy Response Object (to simulate model output)
+
 class PredictionResponse(BaseModel):
-    """
-    Schema for the prediction response.
-    """
+    """This defines what the API will send back as a response."""
     user_id: int
     confidence_score: float
 
-# Temporary hardcoded response
+
+# Dummy result (will be replaced by real model later)
 response_data = PredictionResponse(user_id=123456789, confidence_score=0.95)
+
+
+def preprocess_image(file: UploadFile) -> np.ndarray:
+    """
+    Prepare the uploaded image before sending it to the model.
+    Steps:
+    - Open the image
+    - Resize to 224x224
+    - Convert to array
+    - Scale values between 0 and 1
+    """
+    image = Image.open(io.BytesIO(file.file.read())).convert("RGB")
+    image = image.resize((224, 224))
+    img_array = np.array(image) / 255.0
+    return img_array
 
 
 def user_id_prediction(frames: List[UploadFile]):
     """
-    This function will handle:
-    - Preprocessing the uploaded frames
-    - Running them through the trained model
-    - Updating the response_data with prediction results
-    
-    Currently just sets dummy values (to be replaced with actual logic).
+    Process the uploaded frames and run prediction.
+    For now, this just returns a dummy result.
     """
-    # 🛑 Placeholder logic: real model prediction will go here
+    processed_frames = [preprocess_image(f) for f in frames]
+
+    # Later: call the real model here with processed_frames
     response_data.user_id = 123456789
     response_data.confidence_score = 0.95
 
 
 @app.get("/attendance/recognise", response_model=PredictionResponse)
 async def get_attendance_recognise():
-    """
-    API endpoint to return the most recent recognition result.
-    """
+    """Get the latest prediction result."""
     return response_data
 
 
 @app.post("/attendance/recognise")
 async def post_attendance_model(frames: List[UploadFile] = File(...)):
-    """
-    API endpoint to receive image frames and trigger recognition logic.
-    """
+    """Upload images, preprocess them, and run prediction."""
     user_id_prediction(frames)
-    return {"status": "success", "message": "Frames received and processed."}
+    return {"status": "success", "message": "Frames received and processed"}
